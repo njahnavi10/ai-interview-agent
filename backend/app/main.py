@@ -16,6 +16,8 @@ from app.services.question_generator import generate_question
 from app.models import InterviewRequest
 from app.services.ai_interviewer import generate_ai_question
 
+from app.services.answer_evaluator import evaluate_answer
+
 app = FastAPI(
     title="AI Interview Agent",
     version="1.0.0"
@@ -257,3 +259,39 @@ def test_ai():
     return {
         "question": question
     }
+
+@app.post("/test-evaluator")
+def test_evaluator():
+
+    candidate = {
+        "member": {
+            "name": "Sarah Johnson",
+            "jobRole": "Senior Data Engineer",
+            "yearsExperience": 9
+        }
+    }
+
+    curriculum_day = get_curriculum_day(29)
+
+    question = """
+    How would you architect the observability layer using structured
+    logging and Prometheus to track component-level latency,
+    tool execution failures, and token costs?
+    """
+
+    answer = """
+    I would use structured logs to capture tool failures and request
+    information. Prometheus would collect metrics such as latency
+    and error rates. I would avoid putting user_id and session_id
+    directly into Prometheus labels because they create high
+    cardinality.
+    """
+
+    evaluation = evaluate_answer(
+        question=question,
+        answer=answer,
+        candidate=candidate,
+        curriculum_day=curriculum_day
+    )
+
+    return evaluation
