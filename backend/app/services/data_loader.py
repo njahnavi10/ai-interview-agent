@@ -13,3 +13,12 @@ def load_curriculum():
 def load_candidates():
     with open(DATA_DIR / "candidates.json", "r", encoding="utf-8") as f:
         return json.load(f)
+
+def get_curriculum_day(day_number):
+    curriculum = load_curriculum()
+
+    for day in curriculum["days"]:
+        if day["day"] == day_number:
+            return day
+
+    return None

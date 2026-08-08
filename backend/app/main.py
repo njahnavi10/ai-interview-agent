@@ -1,6 +1,11 @@
 from fastapi import FastAPI
+from requests import session
 # from app.models import InterviewRequest
-from app.services.data_loader import load_candidates,load_curriculum
+from app.services.data_loader import load_curriculum, load_candidates
+from app.services.data_loader import (
+    load_candidates,
+    get_curriculum_day
+)
 from app.services.candidate_analyzer import analyze_candidate
 from app.services.planner import create_interview_plan
 from app.services.session_manager import (
@@ -144,7 +149,19 @@ def interview(request: InterviewRequest):
 
         first_topic = plan["topics"][0]
 
-        question = generate_question(first_topic)
+        curriculum_day = get_curriculum_day(first_topic["day"])
+
+        if curriculum_day is None:
+            return {
+                "error": f"Curriculum day {first_topic['day']} not found"
+        }
+
+        question = generate_ai_question(
+         topic=first_topic,
+        candidate=candidate,
+        previous_answers=[],
+        curriculum_day=curriculum_day
+    )
 
         session["questions"].append(question)
 
@@ -194,7 +211,19 @@ def interview(request: InterviewRequest):
 
     next_topic = session["plan"]["topics"][question_number]
 
-    question = generate_question(next_topic)
+    curriculum_day = get_curriculum_day(next_topic["day"])
+
+    if curriculum_day is None:
+        return {
+            "error": f"Curriculum day {next_topic['day']} not found"
+        }
+
+    question = generate_ai_question(
+    topic=next_topic,
+    candidate=session["candidate"],
+    previous_answers=session["answers"],
+    curriculum_day=curriculum_day
+)
 
     session["questions"].append(question)
 

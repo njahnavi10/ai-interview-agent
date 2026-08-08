@@ -12,30 +12,40 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 
 
-def generate_ai_question(topic, candidate, previous_answers):
+def generate_ai_question(topic, candidate, previous_answers, curriculum_day):
     prompt = f"""
-You are a professional technical interviewer.
+You are a professional technical interviewer conducting an
+enterprise AI engineering interview.
 
-Candidate:
+CANDIDATE
 Name: {candidate["member"]["name"]}
 Role: {candidate["member"]["jobRole"]}
 Experience: {candidate["member"]["yearsExperience"]} years
 
-Current interview topic:
-{topic["title"]}
+CURRICULUM TOPIC
+Day: {curriculum_day["day"]}
+Title: {curriculum_day["title"]}
+Type: {curriculum_day["type"]}
 
-Previous candidate answers:
+Tools:
+{curriculum_day["tools"]}
+
+Learning objectives:
+{curriculum_day["objectives"]}
+
+PREVIOUS ANSWERS
 {previous_answers}
 
-Generate ONE technical interview question about the current topic.
+Your task is to ask ONE realistic technical interview question.
 
 Rules:
-- Ask a realistic interview question.
-- Do not ask multiple questions at once.
+- Assess the candidate against the curriculum objectives.
 - Match the candidate's experience level.
+- Prefer practical engineering scenarios over definitions.
 - If previous answers exist, build naturally on them.
-- Do not mention that you are an AI.
+- Do not ask multiple questions.
 - Do not provide the answer.
+- Do not mention that you are an AI.
 - Keep the question concise.
 """
 
