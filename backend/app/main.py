@@ -3,6 +3,10 @@ from fastapi import FastAPI
 from app.services.data_loader import load_candidates,load_curriculum
 from app.services.candidate_analyzer import analyze_candidate
 from app.services.planner import create_interview_plan
+from app.services.session_manager import (
+    create_session,
+    get_session
+)
 
 app = FastAPI(
     title="AI Interview Agent",
@@ -77,4 +81,35 @@ def test_plan(candidate_id: str):
 
     return {
         "error": "Candidate not found"
+    }
+
+@app.get("/test-session/{session_id}")
+def test_session(session_id: str):
+
+    session = get_session(session_id)
+
+    if session is None:
+        return {
+            "exists": False
+        }
+
+    return {
+        "exists": True,
+        "current_question": session["current_question"],
+        "done": session["done"]
+    }
+
+@app.post("/test-session/{session_id}")
+def create_test_session(session_id: str):
+
+    session = create_session(
+        session_id=session_id,
+        candidate={"name": "Sarah Johnson"},
+        analysis={"test": True},
+        plan={"topics": []}
+    )
+
+    return {
+        "session_created": True,
+        "session_id": session_id
     }
