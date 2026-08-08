@@ -2,6 +2,7 @@ from fastapi import FastAPI
 # from app.models import InterviewRequest
 from app.services.data_loader import load_candidates,load_curriculum
 from app.services.candidate_analyzer import analyze_candidate
+from app.services.planner import create_interview_plan
 
 app = FastAPI(
     title="AI Interview Agent",
@@ -60,6 +61,19 @@ def test_candidate(candidate_id: str):
     for candidate in data["candidates"]:
         if candidate["member"]["id"] == candidate_id:
             return analyze_candidate(candidate)
+
+    return {
+        "error": "Candidate not found"
+    }
+
+@app.get("/test-plan/{candidate_id}")
+def test_plan(candidate_id: str):
+    data = load_candidates()
+
+    for candidate in data["candidates"]:
+        if candidate["member"]["id"] == candidate_id:
+            analysis = analyze_candidate(candidate)
+            return create_interview_plan(analysis)
 
     return {
         "error": "Candidate not found"
