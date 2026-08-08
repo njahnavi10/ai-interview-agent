@@ -22,6 +22,7 @@ from app.services.ai_interviewer import (
 )
 
 from app.services.answer_evaluator import evaluate_answer
+from app.services.feedback_generator import generate_final_feedback
 
 app = FastAPI(
     title="AI Interview Agent",
@@ -408,3 +409,62 @@ def test_evaluator():
     )
 
     return evaluation
+
+@app.post("/test-feedback")
+def test_feedback():
+
+    candidate = {
+        "member": {
+            "name": "Sarah Johnson",
+            "jobRole": "Senior Data Engineer",
+            "yearsExperience": 9
+        }
+    }
+
+    questions = [
+        "How would you design a hybrid retrieval engine?",
+        "How would you handle high-cardinality Prometheus metrics?"
+    ]
+
+    answers = [
+        "I would route structured queries to SQL and semantic queries to vector search.",
+        "I would avoid using user_id and session_id as Prometheus labels."
+    ]
+
+    evaluations = [
+        {
+            "score": 7,
+            "level": "GOOD",
+            "strengths": [
+                "Understands SQL and vector retrieval"
+            ],
+            "gaps": [
+                "Needs more detail on result ranking"
+            ],
+            "misconceptions": [],
+            "follow_up_needed": False,
+            "follow_up_focus": ""
+        },
+        {
+            "score": 4,
+            "level": "DEVELOPING",
+            "strengths": [
+                "Understands high-cardinality risk"
+            ],
+            "gaps": [
+                "Limited knowledge of Prometheus metric types"
+            ],
+            "misconceptions": [],
+            "follow_up_needed": True,
+            "follow_up_focus": "Prometheus counters and histograms"
+        }
+    ]
+
+    feedback = generate_final_feedback(
+        candidate=candidate,
+        questions=questions,
+        answers=answers,
+        evaluations=evaluations
+    )
+
+    return feedback
