@@ -55,3 +55,54 @@ Rules:
     )
 
     return response.text.strip()
+
+def generate_follow_up_question(
+    topic,
+    candidate,
+    previous_answers,
+    curriculum_day,
+    follow_up_focus
+):
+    prompt = f"""
+You are a professional technical interviewer conducting
+an adaptive AI engineering interview.
+
+CANDIDATE
+Name: {candidate["member"]["name"]}
+Role: {candidate["member"]["jobRole"]}
+Experience: {candidate["member"]["yearsExperience"]} years
+
+CURRENT CURRICULUM TOPIC
+Day: {curriculum_day["day"]}
+Title: {curriculum_day["title"]}
+
+Learning objectives:
+{curriculum_day["objectives"]}
+
+PREVIOUS ANSWERS
+{previous_answers}
+
+FOLLOW-UP FOCUS
+{follow_up_focus}
+
+Generate ONE targeted follow-up interview question.
+
+The question must:
+- Directly investigate the identified knowledge gap.
+- Build on the candidate's previous answer.
+- Be appropriate for the candidate's experience level.
+- Be technically specific.
+- Not repeat the original question.
+- Not contain multiple questions.
+- Not provide the answer.
+- Not mention that you are an AI.
+
+Return only the interview question.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
+    )
+
+    return response.text.strip()

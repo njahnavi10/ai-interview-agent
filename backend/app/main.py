@@ -1,20 +1,25 @@
 from fastapi import FastAPI
-from requests import session
-# from app.models import InterviewRequest
-from app.services.data_loader import load_curriculum, load_candidates
+
+from app.models import InterviewRequest
+
 from app.services.data_loader import (
+    load_curriculum,
     load_candidates,
     get_curriculum_day
 )
+
 from app.services.candidate_analyzer import analyze_candidate
 from app.services.planner import create_interview_plan
+
 from app.services.session_manager import (
     create_session,
     get_session
 )
-from app.services.question_generator import generate_question
-from app.models import InterviewRequest
-from app.services.ai_interviewer import generate_ai_question
+
+from app.services.ai_interviewer import (
+    generate_ai_question,
+    generate_follow_up_question
+)
 
 from app.services.answer_evaluator import evaluate_answer
 
@@ -127,21 +132,24 @@ def create_test_session(session_id: str):
 @app.post("/api/interview")
 def interview(request: InterviewRequest):
 
-    # ------------------------------------------------
-    # 1. NEW INTERVIEW
-    # ------------------------------------------------
+    # ============================================================
+    # 1. START NEW INTERVIEW
+    # ============================================================
 
     if request.candidate:
 
         candidate = request.candidate
 
+        # Analyze candidate
         analysis = analyze_candidate(candidate)
 
+        # Create personalized interview plan
         plan = create_interview_plan(
             analysis,
             num_questions=8
         )
 
+        # Create session
         session = create_session(
             session_id=request.sessionId,
             candidate=candidate,
@@ -149,21 +157,29 @@ def interview(request: InterviewRequest):
             plan=plan
         )
 
+        # Extra adaptive-interview state
+        session["evaluations"] = []
+        session["followups_for_current"] = 0
+
+        # First topic
         first_topic = plan["topics"][0]
 
-        curriculum_day = get_curriculum_day(first_topic["day"])
+        curriculum_day = get_curriculum_day(
+            first_topic["day"]
+        )
 
         if curriculum_day is None:
             return {
                 "error": f"Curriculum day {first_topic['day']} not found"
-        }
+            }
 
+        # Generate AI question
         question = generate_ai_question(
-         topic=first_topic,
-        candidate=candidate,
-        previous_answers=[],
-        curriculum_day=curriculum_day
-    )
+            topic=first_topic,
+            candidate=candidate,
+            previous_answers=[],
+            curriculum_day=curriculum_day
+        )
 
         session["questions"].append(question)
 
@@ -173,9 +189,9 @@ def interview(request: InterviewRequest):
             "done": False
         }
 
-    # ------------------------------------------------
-    # 2. CONTINUE EXISTING INTERVIEW
-    # ------------------------------------------------
+    # ============================================================
+    # 2. GET EXISTING SESSION
+    # ============================================================
 
     session = get_session(request.sessionId)
 
@@ -184,18 +200,108 @@ def interview(request: InterviewRequest):
             "error": "Session not found"
         }
 
-    # Save candidate's answer
-    if request.message:
-        session["answers"].append(request.message)
+    if session["done"]:
+        return {
+            "sessionId": request.sessionId,
+            "reply": "This interview has already been completed.",
+            "done": True
+        }
 
-    # Move to next question
+    # Make sure adaptive fields exist
+    session.setdefault("evaluations", [])
+    session.setdefault("followups_for_current", 0)
+
+    # ============================================================
+    # 3. GET CURRENT QUESTION
+    # ============================================================
+
+    current_question_index = session["current_question"]
+
+    current_topic = session["plan"]["topics"][
+        current_question_index
+    ]
+
+    curriculum_day = get_curriculum_day(
+        current_topic["day"]
+    )
+
+    if curriculum_day is None:
+        return {
+            "error": f"Curriculum day {current_topic['day']} not found"
+        }
+
+    current_question = session["questions"][-1]
+
+    # ============================================================
+    # 4. SAVE CANDIDATE ANSWER
+    # ============================================================
+
+    answer = request.message
+
+    if not answer:
+        return {
+            "error": "A message is required for an existing interview."
+        }
+
+    session["answers"].append(answer)
+
+    # ============================================================
+    # 5. EVALUATE ANSWER WITH GEMINI
+    # ============================================================
+
+    evaluation = evaluate_answer(
+        question=current_question,
+        answer=answer,
+        candidate=session["candidate"],
+        curriculum_day=curriculum_day
+    )
+
+    session["evaluations"].append(evaluation)
+
+    # ============================================================
+    # 6. ADAPTIVE FOLLOW-UP
+    # ============================================================
+
+    # Maximum ONE follow-up for each curriculum topic.
+    if (
+        evaluation["follow_up_needed"]
+        and session["followups_for_current"] < 1
+    ):
+
+        session["followups_for_current"] += 1
+
+        follow_up_question = generate_follow_up_question(
+            topic=current_topic,
+            candidate=session["candidate"],
+            previous_answers=session["answers"],
+            curriculum_day=curriculum_day,
+            follow_up_focus=evaluation["follow_up_focus"]
+        )
+
+        session["questions"].append(
+            follow_up_question
+        )
+
+        return {
+            "sessionId": request.sessionId,
+            "reply": follow_up_question,
+            "done": False
+        }
+
+    # ============================================================
+    # 7. MOVE TO NEXT CURRICULUM TOPIC
+    # ============================================================
+
     session["current_question"] += 1
+
+    # Reset follow-up counter for new topic
+    session["followups_for_current"] = 0
 
     question_number = session["current_question"]
 
-    # ------------------------------------------------
-    # 3. END INTERVIEW AFTER 8 QUESTIONS
-    # ------------------------------------------------
+    # ============================================================
+    # 8. CHECK WHETHER INTERVIEW IS COMPLETE
+    # ============================================================
 
     if question_number >= len(session["plan"]["topics"]):
 
@@ -207,25 +313,29 @@ def interview(request: InterviewRequest):
             "done": True
         }
 
-    # ------------------------------------------------
-    # 4. ASK NEXT QUESTION
-    # ------------------------------------------------
+    # ============================================================
+    # 9. GENERATE NEXT TOPIC QUESTION
+    # ============================================================
 
-    next_topic = session["plan"]["topics"][question_number]
+    next_topic = session["plan"]["topics"][
+        question_number
+    ]
 
-    curriculum_day = get_curriculum_day(next_topic["day"])
+    next_curriculum_day = get_curriculum_day(
+        next_topic["day"]
+    )
 
-    if curriculum_day is None:
+    if next_curriculum_day is None:
         return {
             "error": f"Curriculum day {next_topic['day']} not found"
         }
 
     question = generate_ai_question(
-    topic=next_topic,
-    candidate=session["candidate"],
-    previous_answers=session["answers"],
-    curriculum_day=curriculum_day
-)
+        topic=next_topic,
+        candidate=session["candidate"],
+        previous_answers=session["answers"],
+        curriculum_day=next_curriculum_day
+    )
 
     session["questions"].append(question)
 
@@ -250,11 +360,14 @@ def test_ai():
         }
     }
 
+    curriculum_day = get_curriculum_day(12)
+
     question = generate_ai_question(
-        topic=topic,
-        candidate=candidate,
-        previous_answers=[]
-    )
+    topic=topic,
+    candidate=candidate,
+    previous_answers=[],
+    curriculum_day=curriculum_day
+)
 
     return {
         "question": question
