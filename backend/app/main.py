@@ -9,6 +9,7 @@ from app.services.session_manager import (
 )
 from app.services.question_generator import generate_question
 from app.models import InterviewRequest
+from app.services.ai_interviewer import generate_ai_question
 
 app = FastAPI(
     title="AI Interview Agent",
@@ -201,4 +202,29 @@ def interview(request: InterviewRequest):
         "sessionId": request.sessionId,
         "reply": question,
         "done": False
+    }
+
+@app.get("/test-ai")
+def test_ai():
+
+    topic = {
+        "title": "Prompt Engineering Fundamentals"
+    }
+
+    candidate = {
+        "member": {
+            "name": "Sarah Johnson",
+            "jobRole": "Senior Data Engineer",
+            "yearsExperience": 9
+        }
+    }
+
+    question = generate_ai_question(
+        topic=topic,
+        candidate=candidate,
+        previous_answers=[]
+    )
+
+    return {
+        "question": question
     }
