@@ -51,22 +51,6 @@ def home():
     }
 
 
-# @app.post("/api/interview")
-# def interview(request: InterviewRequest):
-
-#     # First request starts the interview
-#     if request.candidate:
-#         return {
-#             "reply": "Welcome! Let's begin your AI interview.",
-#             "done": False
-#         }
-
-#     # Subsequent requests
-#     return {
-#         "reply": "Thanks for your answer. Here's your next question...",
-#         "done": False
-#     }
-
 
 
 @app.get("/test")
@@ -78,6 +62,7 @@ def test():
         "total_candidates": len(candidates),
         "first_candidate": candidates[0]["member"]["name"]
     }
+
 
 @app.get("/api/candidates")
 def get_candidates():
