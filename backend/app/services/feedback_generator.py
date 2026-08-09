@@ -1,17 +1,8 @@
 import json
 import os
 
-from dotenv import load_dotenv
-from google import genai
+from app.services.gemini_client import generate_content
 
-load_dotenv()
-
-API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not API_KEY:
-    raise ValueError("GEMINI_API_KEY is not set")
-
-client = genai.Client(api_key=API_KEY)
 
 
 def generate_final_feedback(
@@ -76,12 +67,7 @@ Rules:
 - Return ONLY JSON.
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
-    text = response.text.strip()
+    text = generate_content(prompt)
 
     if text.startswith("```"):
         text = text.replace("```json", "", 1)

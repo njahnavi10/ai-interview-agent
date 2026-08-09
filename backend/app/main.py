@@ -1,4 +1,7 @@
+from urllib import request
+
 from fastapi import FastAPI
+from requests import session
 
 from app.models import InterviewRequest
 
@@ -23,6 +26,7 @@ from app.services.ai_interviewer import (
 
 from app.services.answer_evaluator import evaluate_answer
 from app.services.feedback_generator import generate_final_feedback
+
 
 app = FastAPI(
     title="AI Interview Agent",
@@ -233,9 +237,9 @@ def interview(request: InterviewRequest):
 
     current_question = session["questions"][-1]
 
-    # ============================================================
-    # 4. SAVE CANDIDATE ANSWER
-    # ============================================================
+   # ============================================================
+# 4. SAVE CANDIDATE ANSWER
+# ============================================================
 
     answer = request.message
 
@@ -246,9 +250,10 @@ def interview(request: InterviewRequest):
 
     session["answers"].append(answer)
 
-    # ============================================================
-    # 5. EVALUATE ANSWER WITH GEMINI
-    # ============================================================
+
+# ============================================================
+# 5. EVALUATE ANSWER WITH GEMINI
+# ============================================================
 
     evaluation = evaluate_answer(
         question=current_question,
@@ -259,13 +264,31 @@ def interview(request: InterviewRequest):
 
     session["evaluations"].append(evaluation)
 
-    # ============================================================
-    # 6. ADAPTIVE FOLLOW-UP
-    # ============================================================
 
-    # Maximum ONE follow-up for each curriculum topic.
+# ============================================================
+# 6. SAVE INTERVIEW TRANSCRIPT ENTRY
+# ============================================================
+
+    if "transcript" not in session:
+        session["transcript"] = []
+
+    session["transcript"].append({
+        "topic_day": current_topic["day"],
+        "topic_title": current_topic["title"],
+        "question": current_question,
+        "answer": answer,
+        "evaluation": evaluation,
+        "is_followup": session["followups_for_current"] > 0
+    })
+
+
+# ============================================================
+# 7. ADAPTIVE FOLLOW-UP
+# ============================================================
+
+# Maximum ONE follow-up for each curriculum topic.
     if (
-        evaluation["follow_up_needed"]
+        evaluation.get("follow_up_needed", False)
         and session["followups_for_current"] < 1
     ):
 
@@ -276,12 +299,10 @@ def interview(request: InterviewRequest):
             candidate=session["candidate"],
             previous_answers=session["answers"],
             curriculum_day=curriculum_day,
-            follow_up_focus=evaluation["follow_up_focus"]
+            follow_up_focus=evaluation.get("follow_up_focus", "")
         )
 
-        session["questions"].append(
-            follow_up_question
-        )
+        session["questions"].append(follow_up_question)
 
         return {
             "sessionId": request.sessionId,
@@ -289,38 +310,57 @@ def interview(request: InterviewRequest):
             "done": False
         }
 
-    # ============================================================
-    # 7. MOVE TO NEXT CURRICULUM TOPIC
-    # ============================================================
+
+# ============================================================
+# 8. MOVE TO NEXT CURRICULUM TOPIC
+# ============================================================
 
     session["current_question"] += 1
 
-    # Reset follow-up counter for new topic
+# Reset follow-up counter for the new topic
     session["followups_for_current"] = 0
 
     question_number = session["current_question"]
 
-    # ============================================================
-    # 8. CHECK WHETHER INTERVIEW IS COMPLETE
-    # ============================================================
+
+# ============================================================
+# 9. CHECK WHETHER INTERVIEW IS COMPLETE
+# ============================================================
 
     if question_number >= len(session["plan"]["topics"]):
 
+        feedback = generate_final_feedback(
+            candidate=session["candidate"],
+            questions=[
+                item["question"]
+                for item in session["transcript"]
+            ],
+            answers=[
+                item["answer"]
+                for item in session["transcript"]
+            ],
+            evaluations=[
+                item["evaluation"]
+                for item in session["transcript"]
+            ]
+        )
+
+        session["feedback"] = feedback
         session["done"] = True
 
         return {
             "sessionId": request.sessionId,
             "reply": "Thank you. The interview is complete.",
-            "done": True
+            "done": True,
+            "feedback": feedback
         }
 
-    # ============================================================
-    # 9. GENERATE NEXT TOPIC QUESTION
-    # ============================================================
 
-    next_topic = session["plan"]["topics"][
-        question_number
-    ]
+# ============================================================
+# 10. GENERATE NEXT TOPIC QUESTION
+# ============================================================
+
+    next_topic = session["plan"]["topics"][question_number]
 
     next_curriculum_day = get_curriculum_day(
         next_topic["day"]
@@ -345,126 +385,3 @@ def interview(request: InterviewRequest):
         "reply": question,
         "done": False
     }
-
-@app.get("/test-ai")
-def test_ai():
-
-    topic = {
-        "title": "Prompt Engineering Fundamentals"
-    }
-
-    candidate = {
-        "member": {
-            "name": "Sarah Johnson",
-            "jobRole": "Senior Data Engineer",
-            "yearsExperience": 9
-        }
-    }
-
-    curriculum_day = get_curriculum_day(12)
-
-    question = generate_ai_question(
-    topic=topic,
-    candidate=candidate,
-    previous_answers=[],
-    curriculum_day=curriculum_day
-)
-
-    return {
-        "question": question
-    }
-
-@app.post("/test-evaluator")
-def test_evaluator():
-
-    candidate = {
-        "member": {
-            "name": "Sarah Johnson",
-            "jobRole": "Senior Data Engineer",
-            "yearsExperience": 9
-        }
-    }
-
-    curriculum_day = get_curriculum_day(29)
-
-    question = """
-    How would you architect the observability layer using structured
-    logging and Prometheus to track component-level latency,
-    tool execution failures, and token costs?
-    """
-
-    answer = """
-    I would use structured logs to capture tool failures and request
-    information. Prometheus would collect metrics such as latency
-    and error rates. I would avoid putting user_id and session_id
-    directly into Prometheus labels because they create high
-    cardinality.
-    """
-
-    evaluation = evaluate_answer(
-        question=question,
-        answer=answer,
-        candidate=candidate,
-        curriculum_day=curriculum_day
-    )
-
-    return evaluation
-
-@app.post("/test-feedback")
-def test_feedback():
-
-    candidate = {
-        "member": {
-            "name": "Sarah Johnson",
-            "jobRole": "Senior Data Engineer",
-            "yearsExperience": 9
-        }
-    }
-
-    questions = [
-        "How would you design a hybrid retrieval engine?",
-        "How would you handle high-cardinality Prometheus metrics?"
-    ]
-
-    answers = [
-        "I would route structured queries to SQL and semantic queries to vector search.",
-        "I would avoid using user_id and session_id as Prometheus labels."
-    ]
-
-    evaluations = [
-        {
-            "score": 7,
-            "level": "GOOD",
-            "strengths": [
-                "Understands SQL and vector retrieval"
-            ],
-            "gaps": [
-                "Needs more detail on result ranking"
-            ],
-            "misconceptions": [],
-            "follow_up_needed": False,
-            "follow_up_focus": ""
-        },
-        {
-            "score": 4,
-            "level": "DEVELOPING",
-            "strengths": [
-                "Understands high-cardinality risk"
-            ],
-            "gaps": [
-                "Limited knowledge of Prometheus metric types"
-            ],
-            "misconceptions": [],
-            "follow_up_needed": True,
-            "follow_up_focus": "Prometheus counters and histograms"
-        }
-    ]
-
-    feedback = generate_final_feedback(
-        candidate=candidate,
-        questions=questions,
-        answers=answers,
-        evaluations=evaluations
-    )
-
-    return feedback

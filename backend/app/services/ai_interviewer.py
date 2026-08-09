@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from google import genai
+from app.services.gemini_client import generate_content
 
 load_dotenv()
 
@@ -9,7 +9,7 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY is not set")
 
-client = genai.Client(api_key=API_KEY)
+
 
 
 def generate_ai_question(topic, candidate, previous_answers, curriculum_day):
@@ -49,12 +49,7 @@ Rules:
 - Keep the question concise.
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
-    return response.text.strip()
+    return generate_content(prompt)
 
 def generate_follow_up_question(
     topic,
@@ -100,9 +95,4 @@ The question must:
 Return only the interview question.
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
-    return response.text.strip()
+    return generate_content(prompt)

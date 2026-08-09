@@ -9,7 +9,11 @@ def create_session(session_id, candidate, analysis, plan):
         "current_question": 0,
         "questions": [],
         "answers": [],
-        "done": False
+        "evaluations": [],
+        "transcript": [],
+        "followups_for_current": 0,
+        "done": False,
+        "feedback": None
     }
 
     return sessions[session_id]

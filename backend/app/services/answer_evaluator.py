@@ -1,7 +1,7 @@
 import json
-from google import genai
 import os
 from dotenv import load_dotenv
+from app.services.gemini_client import generate_content
 
 load_dotenv()
 
@@ -10,7 +10,6 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY is not set")
 
-client = genai.Client(api_key=API_KEY)
 
 
 def evaluate_answer(
@@ -74,12 +73,7 @@ Rules:
 - If no follow-up is needed, use an empty string for follow_up_focus.
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
-    text = response.text.strip()
+    text = generate_content(prompt)
 
     # Remove markdown code fences if Gemini adds them
     if text.startswith("```"):
