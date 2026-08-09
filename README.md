@@ -155,48 +155,8 @@ to select a candidate before starting an interview.
             │ Generator       │
             └─────────────────┘
 
-## Interview Flow
+  |
 
-```text
-Select Candidate
-       |
-       v
-Analyze Candidate
-       |
-       v
-Create Interview Plan
-       |
-       v
-Generate Technical Question
-       |
-       v
-Candidate Answers
-       |
-       v
-Evaluate Answer
-       |
-       v
-Follow-Up Needed?
-    /        \
-  Yes        No
-   |          |
-   v          v
-Generate    Next Topic
-Follow-Up      |
-   |           |
-   +-----+-----+
-         |
-         v
-Continue Interview
-         |
-         v
-8 Candidate Answers
-         |
-         v
-Generate Final Feedback
-         |
-         v
-Interview Complete
 ```
 
 
