@@ -1,12 +1,9 @@
-from urllib import request
-
 from fastapi import FastAPI
-from requests import session
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import InterviewRequest
 
 from app.services.data_loader import (
-    load_curriculum,
     load_candidates,
     get_curriculum_day
 )
@@ -26,13 +23,17 @@ from app.services.ai_interviewer import (
 
 from app.services.answer_evaluator import evaluate_answer
 from app.services.feedback_generator import generate_final_feedback
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
     title="AI Interview Agent",
     version="1.0.0"
 )
+
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +44,9 @@ app.add_middleware(
 )
 
 
+# ============================================================
+# HEALTH CHECK
+# ============================================================
 
 @app.get("/")
 def home():
@@ -51,18 +55,9 @@ def home():
     }
 
 
-
-
-@app.get("/test")
-def test():
-    data = load_candidates()
-    candidates = data["candidates"]
-
-    return {
-        "total_candidates": len(candidates),
-        "first_candidate": candidates[0]["member"]["name"]
-    }
-
+# ============================================================
+# GET CANDIDATES
+# ============================================================
 
 @app.get("/api/candidates")
 def get_candidates():
@@ -72,118 +67,38 @@ def get_candidates():
         "candidates": data["candidates"]
     }
 
-@app.get("/test-curriculum")
-def test_curriculum():
-    data = load_curriculum()
 
-    return {
-        "type": type(data).__name__,
-        "preview": data
-    }
-
-@app.get("/test-ai")
-def test_ai():
-
-    topic = {
-        "title": "Prompt Engineering Fundamentals"
-    }
-
-    candidate = {
-        "member": {
-            "name": "Sarah Johnson",
-            "jobRole": "Senior Data Engineer",
-            "yearsExperience": 9
-        }
-    }
-
-    curriculum_day = get_curriculum_day(12)
-
-    question = generate_ai_question(
-        topic=topic,
-        candidate=candidate,
-        previous_answers=[],
-        curriculum_day=curriculum_day
-    )
-
-    return {
-        "question": question
-    }
-
-@app.get("/test-candidate/{candidate_id}")
-def test_candidate(candidate_id: str):
-    data = load_candidates()
-
-    for candidate in data["candidates"]:
-        if candidate["member"]["id"] == candidate_id:
-            return analyze_candidate(candidate)
-
-    return {
-        "error": "Candidate not found"
-    }
-
-@app.get("/test-plan/{candidate_id}")
-def test_plan(candidate_id: str):
-    data = load_candidates()
-
-    for candidate in data["candidates"]:
-        if candidate["member"]["id"] == candidate_id:
-            analysis = analyze_candidate(candidate)
-            return create_interview_plan(analysis)
-
-    return {
-        "error": "Candidate not found"
-    }
-
-@app.get("/test-session/{session_id}")
-def test_session(session_id: str):
-
-    session = get_session(session_id)
-
-    if session is None:
-        return {
-            "exists": False
-        }
-
-    return {
-        "exists": True,
-        "current_question": session["current_question"],
-        "done": session["done"]
-    }
-
-@app.post("/test-session/{session_id}")
-def create_test_session(session_id: str):
-
-    session = create_session(
-        session_id=session_id,
-        candidate={"name": "Sarah Johnson"},
-        analysis={"test": True},
-        plan={"topics": []}
-    )
-
-    return {
-        "session_created": True,
-        "session_id": session_id
-    }
-
+# ============================================================
+# INTERVIEW
+# ============================================================
 
 @app.post("/api/interview")
 def interview(request: InterviewRequest):
 
-    # ============================================================
+    # ========================================================
     # 1. START NEW INTERVIEW
-    # ============================================================
+    # ========================================================
 
     if request.candidate:
 
         candidate = request.candidate
 
+        # Analyze candidate
         analysis = analyze_candidate(candidate)
 
+        # Create personalized interview plan
         plan = create_interview_plan(
             analysis,
             num_questions=8
         )
 
+        # Safety check
+        if not plan.get("topics"):
+            return {
+                "error": "No interview topics available for this candidate."
+            }
+
+        # Create session
         session = create_session(
             session_id=request.sessionId,
             candidate=candidate,
@@ -195,7 +110,9 @@ def interview(request: InterviewRequest):
         session["evaluations"] = []
         session["followups_for_current"] = 0
         session["total_interactions"] = 0
+        session["transcript"] = []
 
+        # First topic
         first_topic = plan["topics"][0]
 
         curriculum_day = get_curriculum_day(
@@ -204,9 +121,13 @@ def interview(request: InterviewRequest):
 
         if curriculum_day is None:
             return {
-                "error": f"Curriculum day {first_topic['day']} not found"
+                "error": (
+                    f"Curriculum day "
+                    f"{first_topic['day']} not found"
+                )
             }
 
+        # Generate first AI question
         question = generate_ai_question(
             topic=first_topic,
             candidate=candidate,
@@ -222,9 +143,10 @@ def interview(request: InterviewRequest):
             "done": False
         }
 
-    # ============================================================
+
+    # ========================================================
     # 2. GET EXISTING SESSION
-    # ============================================================
+    # ========================================================
 
     session = get_session(request.sessionId)
 
@@ -240,15 +162,20 @@ def interview(request: InterviewRequest):
             "done": True
         }
 
-    # Adaptive fields
+
+    # ========================================================
+    # 3. INITIALIZE ADAPTIVE FIELDS
+    # ========================================================
+
     session.setdefault("evaluations", [])
     session.setdefault("followups_for_current", 0)
     session.setdefault("total_interactions", 0)
     session.setdefault("transcript", [])
 
-    # ============================================================
-    # 3. GET CURRENT QUESTION
-    # ============================================================
+
+    # ========================================================
+    # 4. GET CURRENT QUESTION
+    # ========================================================
 
     current_question_index = session["current_question"]
 
@@ -262,30 +189,38 @@ def interview(request: InterviewRequest):
 
     if curriculum_day is None:
         return {
-            "error": f"Curriculum day {current_topic['day']} not found"
+            "error": (
+                f"Curriculum day "
+                f"{current_topic['day']} not found"
+            )
         }
 
     current_question = session["questions"][-1]
 
-    # ============================================================
-    # 4. SAVE CANDIDATE ANSWER
-    # ============================================================
+
+    # ========================================================
+    # 5. SAVE CANDIDATE ANSWER
+    # ========================================================
 
     answer = request.message
 
     if not answer:
         return {
-            "error": "A message is required for an existing interview."
+            "error": (
+                "A message is required "
+                "for an existing interview."
+            )
         }
 
     session["answers"].append(answer)
 
-    # Count this answer
+    # Count candidate answer
     session["total_interactions"] += 1
 
-    # ============================================================
-    # 5. EVALUATE ANSWER
-    # ============================================================
+
+    # ========================================================
+    # 6. EVALUATE ANSWER
+    # ========================================================
 
     evaluation = evaluate_answer(
         question=current_question,
@@ -296,9 +231,10 @@ def interview(request: InterviewRequest):
 
     session["evaluations"].append(evaluation)
 
-    # ============================================================
-    # 6. SAVE TRANSCRIPT
-    # ============================================================
+
+    # ========================================================
+    # 7. SAVE TRANSCRIPT
+    # ========================================================
 
     session["transcript"].append({
         "topic_day": current_topic["day"],
@@ -306,12 +242,15 @@ def interview(request: InterviewRequest):
         "question": current_question,
         "answer": answer,
         "evaluation": evaluation,
-        "is_followup": session["followups_for_current"] > 0
+        "is_followup": (
+            session["followups_for_current"] > 0
+        )
     })
 
-    # ============================================================
-    # 7. HARD LIMIT: 8 TOTAL ANSWERS
-    # ============================================================
+
+    # ========================================================
+    # 8. HARD LIMIT: 8 TOTAL ANSWERS
+    # ========================================================
 
     if session["total_interactions"] >= 8:
 
@@ -341,9 +280,10 @@ def interview(request: InterviewRequest):
             "feedback": feedback
         }
 
-    # ============================================================
-    # 8. ADAPTIVE FOLLOW-UP
-    # ============================================================
+
+    # ========================================================
+    # 9. ADAPTIVE FOLLOW-UP
+    # ========================================================
 
     if (
         evaluation.get("follow_up_needed", False)
@@ -373,9 +313,10 @@ def interview(request: InterviewRequest):
             "done": False
         }
 
-    # ============================================================
-    # 9. MOVE TO NEXT CURRICULUM TOPIC
-    # ============================================================
+
+    # ========================================================
+    # 10. MOVE TO NEXT CURRICULUM TOPIC
+    # ========================================================
 
     session["current_question"] += 1
 
@@ -383,9 +324,10 @@ def interview(request: InterviewRequest):
 
     question_number = session["current_question"]
 
-    # ============================================================
-    # 10. SAFETY CHECK
-    # ============================================================
+
+    # ========================================================
+    # 11. SAFETY CHECK
+    # ========================================================
 
     if question_number >= len(
         session["plan"]["topics"]
@@ -417,9 +359,10 @@ def interview(request: InterviewRequest):
             "feedback": feedback
         }
 
-    # ============================================================
-    # 11. GENERATE NEXT TOPIC QUESTION
-    # ============================================================
+
+    # ========================================================
+    # 12. GENERATE NEXT TOPIC QUESTION
+    # ========================================================
 
     next_topic = session["plan"]["topics"][
         question_number
@@ -431,7 +374,10 @@ def interview(request: InterviewRequest):
 
     if next_curriculum_day is None:
         return {
-            "error": f"Curriculum day {next_topic['day']} not found"
+            "error": (
+                f"Curriculum day "
+                f"{next_topic['day']} not found"
+            )
         }
 
     question = generate_ai_question(
