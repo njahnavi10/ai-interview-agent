@@ -157,25 +157,48 @@ to select a candidate before starting an interview.
 
 ## Interview Flow
 
-```mermaid
-flowchart TD
-    A[Select Candidate] --> B[Analyze Candidate]
-    B --> C[Create Interview Plan]
-    C --> D[Generate Technical Question]
-    D --> E[Candidate Answers]
-    E --> F[Evaluate Answer]
-    F --> G{Follow-Up Needed?}
-
-    G -->|Yes| H[Generate Follow-Up]
-    H --> E
-
-    G -->|No| I[Move to Next Topic]
-    I --> D
-
-    I --> J[8 Candidate Answers]
-    J --> K[Generate Final Feedback]
-    K --> L[Interview Complete]
+```text
+Select Candidate
+       |
+       v
+Analyze Candidate
+       |
+       v
+Create Interview Plan
+       |
+       v
+Generate Technical Question
+       |
+       v
+Candidate Answers
+       |
+       v
+Evaluate Answer
+       |
+       v
+Follow-Up Needed?
+    /        \
+  Yes        No
+   |          |
+   v          v
+Generate    Next Topic
+Follow-Up      |
+   |           |
+   +-----+-----+
+         |
+         v
+Continue Interview
+         |
+         v
+8 Candidate Answers
+         |
+         v
+Generate Final Feedback
+         |
+         v
+Interview Complete
 ```
+
 
 ## Technology Stack
 
