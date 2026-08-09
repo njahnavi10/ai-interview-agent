@@ -322,16 +322,4 @@ integration, frontend development, testing, and refinement.
 
 ## Live Demo
 
-**Coming soon**
-
-The live demo URL will be added here after deployment.
-
-## Hackathon
-
-Built for the **AI Cohort Hackathon**
-
-### Challenge
-
-**The Interview Agent**
-
-> Build the interviewer, not the interview.
+https://ai-interview-agent-frontend-6uuq.onrender.com/
