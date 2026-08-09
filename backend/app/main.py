@@ -134,6 +134,7 @@ def create_test_session(session_id: str):
         "session_id": session_id
     }
 
+
 @app.post("/api/interview")
 def interview(request: InterviewRequest):
 
@@ -145,16 +146,13 @@ def interview(request: InterviewRequest):
 
         candidate = request.candidate
 
-        # Analyze candidate
         analysis = analyze_candidate(candidate)
 
-        # Create personalized interview plan
         plan = create_interview_plan(
             analysis,
             num_questions=8
         )
 
-        # Create session
         session = create_session(
             session_id=request.sessionId,
             candidate=candidate,
@@ -162,11 +160,11 @@ def interview(request: InterviewRequest):
             plan=plan
         )
 
-        # Extra adaptive-interview state
+        # Adaptive interview state
         session["evaluations"] = []
         session["followups_for_current"] = 0
+        session["total_interactions"] = 0
 
-        # First topic
         first_topic = plan["topics"][0]
 
         curriculum_day = get_curriculum_day(
@@ -178,7 +176,6 @@ def interview(request: InterviewRequest):
                 "error": f"Curriculum day {first_topic['day']} not found"
             }
 
-        # Generate AI question
         question = generate_ai_question(
             topic=first_topic,
             candidate=candidate,
@@ -212,9 +209,11 @@ def interview(request: InterviewRequest):
             "done": True
         }
 
-    # Make sure adaptive fields exist
+    # Adaptive fields
     session.setdefault("evaluations", [])
     session.setdefault("followups_for_current", 0)
+    session.setdefault("total_interactions", 0)
+    session.setdefault("transcript", [])
 
     # ============================================================
     # 3. GET CURRENT QUESTION
@@ -237,9 +236,9 @@ def interview(request: InterviewRequest):
 
     current_question = session["questions"][-1]
 
-   # ============================================================
-# 4. SAVE CANDIDATE ANSWER
-# ============================================================
+    # ============================================================
+    # 4. SAVE CANDIDATE ANSWER
+    # ============================================================
 
     answer = request.message
 
@@ -250,10 +249,12 @@ def interview(request: InterviewRequest):
 
     session["answers"].append(answer)
 
+    # Count this answer
+    session["total_interactions"] += 1
 
-# ============================================================
-# 5. EVALUATE ANSWER WITH GEMINI
-# ============================================================
+    # ============================================================
+    # 5. EVALUATE ANSWER
+    # ============================================================
 
     evaluation = evaluate_answer(
         question=current_question,
@@ -264,13 +265,9 @@ def interview(request: InterviewRequest):
 
     session["evaluations"].append(evaluation)
 
-
-# ============================================================
-# 6. SAVE INTERVIEW TRANSCRIPT ENTRY
-# ============================================================
-
-    if "transcript" not in session:
-        session["transcript"] = []
+    # ============================================================
+    # 6. SAVE TRANSCRIPT
+    # ============================================================
 
     session["transcript"].append({
         "topic_day": current_topic["day"],
@@ -281,53 +278,11 @@ def interview(request: InterviewRequest):
         "is_followup": session["followups_for_current"] > 0
     })
 
+    # ============================================================
+    # 7. HARD LIMIT: 8 TOTAL ANSWERS
+    # ============================================================
 
-# ============================================================
-# 7. ADAPTIVE FOLLOW-UP
-# ============================================================
-
-# Maximum ONE follow-up for each curriculum topic.
-    if (
-        evaluation.get("follow_up_needed", False)
-        and session["followups_for_current"] < 1
-    ):
-
-        session["followups_for_current"] += 1
-
-        follow_up_question = generate_follow_up_question(
-            topic=current_topic,
-            candidate=session["candidate"],
-            previous_answers=session["answers"],
-            curriculum_day=curriculum_day,
-            follow_up_focus=evaluation.get("follow_up_focus", "")
-        )
-
-        session["questions"].append(follow_up_question)
-
-        return {
-            "sessionId": request.sessionId,
-            "reply": follow_up_question,
-            "done": False
-        }
-
-
-# ============================================================
-# 8. MOVE TO NEXT CURRICULUM TOPIC
-# ============================================================
-
-    session["current_question"] += 1
-
-# Reset follow-up counter for the new topic
-    session["followups_for_current"] = 0
-
-    question_number = session["current_question"]
-
-
-# ============================================================
-# 9. CHECK WHETHER INTERVIEW IS COMPLETE
-# ============================================================
-
-    if question_number >= len(session["plan"]["topics"]):
+    if session["total_interactions"] >= 8:
 
         feedback = generate_final_feedback(
             candidate=session["candidate"],
@@ -355,12 +310,89 @@ def interview(request: InterviewRequest):
             "feedback": feedback
         }
 
+    # ============================================================
+    # 8. ADAPTIVE FOLLOW-UP
+    # ============================================================
 
-# ============================================================
-# 10. GENERATE NEXT TOPIC QUESTION
-# ============================================================
+    if (
+        evaluation.get("follow_up_needed", False)
+        and session["followups_for_current"] < 1
+    ):
 
-    next_topic = session["plan"]["topics"][question_number]
+        session["followups_for_current"] += 1
+
+        follow_up_question = generate_follow_up_question(
+            topic=current_topic,
+            candidate=session["candidate"],
+            previous_answers=session["answers"],
+            curriculum_day=curriculum_day,
+            follow_up_focus=evaluation.get(
+                "follow_up_focus",
+                ""
+            )
+        )
+
+        session["questions"].append(
+            follow_up_question
+        )
+
+        return {
+            "sessionId": request.sessionId,
+            "reply": follow_up_question,
+            "done": False
+        }
+
+    # ============================================================
+    # 9. MOVE TO NEXT CURRICULUM TOPIC
+    # ============================================================
+
+    session["current_question"] += 1
+
+    session["followups_for_current"] = 0
+
+    question_number = session["current_question"]
+
+    # ============================================================
+    # 10. SAFETY CHECK
+    # ============================================================
+
+    if question_number >= len(
+        session["plan"]["topics"]
+    ):
+
+        feedback = generate_final_feedback(
+            candidate=session["candidate"],
+            questions=[
+                item["question"]
+                for item in session["transcript"]
+            ],
+            answers=[
+                item["answer"]
+                for item in session["transcript"]
+            ],
+            evaluations=[
+                item["evaluation"]
+                for item in session["transcript"]
+            ]
+        )
+
+        session["feedback"] = feedback
+        session["done"] = True
+
+        return {
+            "sessionId": request.sessionId,
+            "reply": "Thank you. The interview is complete.",
+            "done": True,
+            "feedback": feedback
+        }
+
+    # ============================================================
+    # 11. GENERATE NEXT TOPIC QUESTION
+    # ============================================================
+
+    next_topic = session["plan"]["topics"][
+        question_number
+    ]
 
     next_curriculum_day = get_curriculum_day(
         next_topic["day"]
