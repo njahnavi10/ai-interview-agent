@@ -1,67 +1,36 @@
 import os
-import time
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import errors
+from groq import Groq
 
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-if not API_KEY:
-    raise ValueError("GEMINI_API_KEY is not set")
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY is not configured")
 
-client = genai.Client(api_key=API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
+
+MODEL = "llama-3.3-70b-versatile"
 
 
-def generate_content(prompt, max_retries=2):
-    """
-    Centralized Gemini API wrapper.
+def generate_content(prompt: str) -> str:
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2
+        )
 
-    Handles temporary 503 errors and rate limits without
-    crashing the FastAPI application.
-    """
+        return response.choices[0].message.content
 
-    for attempt in range(max_retries + 1):
-
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt
-            )
-
-            return response.text.strip()
-
-        except errors.ClientError as e:
-
-            # 429 = quota/rate limit
-            if e.code == 429:
-                if attempt < max_retries:
-                    wait_time = 10 * (attempt + 1)
-                    time.sleep(wait_time)
-                    continue
-
-                raise RuntimeError(
-                    "Gemini API quota exceeded. "
-                    "Please try again later."
-                )
-
-            raise
-
-        except errors.ServerError as e:
-
-            # 503 = temporary Gemini availability issue
-            if e.code == 503 and attempt < max_retries:
-                wait_time = 5 * (attempt + 1)
-                time.sleep(wait_time)
-                continue
-
-            raise RuntimeError(
-                "Gemini service is temporarily unavailable."
-            )
-
-        except Exception as e:
-            raise RuntimeError(
-                f"Gemini request failed: {str(e)}"
-            )
+    except Exception as e:
+        raise RuntimeError(
+            f"Groq API error: {str(e)}"
+        )

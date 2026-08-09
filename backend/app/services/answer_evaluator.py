@@ -5,10 +5,10 @@ from app.services.gemini_client import generate_content
 
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GROQ_API_KEY")
 
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY is not set")
+    raise ValueError("GROQ_API_KEY is not set")
 
 
 

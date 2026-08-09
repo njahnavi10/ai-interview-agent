@@ -26,12 +26,22 @@ from app.services.ai_interviewer import (
 
 from app.services.answer_evaluator import evaluate_answer
 from app.services.feedback_generator import generate_final_feedback
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="AI Interview Agent",
     version="1.0.0"
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 @app.get("/")
@@ -69,6 +79,14 @@ def test():
         "first_candidate": candidates[0]["member"]["name"]
     }
 
+@app.get("/api/candidates")
+def get_candidates():
+    data = load_candidates()
+
+    return {
+        "candidates": data["candidates"]
+    }
+
 @app.get("/test-curriculum")
 def test_curriculum():
     data = load_curriculum()
@@ -76,6 +94,34 @@ def test_curriculum():
     return {
         "type": type(data).__name__,
         "preview": data
+    }
+
+@app.get("/test-ai")
+def test_ai():
+
+    topic = {
+        "title": "Prompt Engineering Fundamentals"
+    }
+
+    candidate = {
+        "member": {
+            "name": "Sarah Johnson",
+            "jobRole": "Senior Data Engineer",
+            "yearsExperience": 9
+        }
+    }
+
+    curriculum_day = get_curriculum_day(12)
+
+    question = generate_ai_question(
+        topic=topic,
+        candidate=candidate,
+        previous_answers=[],
+        curriculum_day=curriculum_day
+    )
+
+    return {
+        "question": question
     }
 
 @app.get("/test-candidate/{candidate_id}")
