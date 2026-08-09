@@ -155,208 +155,200 @@ to select a candidate before starting an interview.
             │ Generator       │
             └─────────────────┘
 
-## 🔄 Interview Flow
-                    Select Candidate
-                           │
-                           ▼
-                  Analyze Candidate
-                           │
-                           ▼
-                Create Interview Plan
-                           │
-                           ▼
-                  Generate Question
-                           │
-                           ▼
-                   Candidate Answer
-                           │
-                           ▼
-                    Evaluate Answer
-                           │
-                           ▼
-                 ┌──────────────────┐
-                 │ Follow-Up Needed?│
-                 └────────┬─────────┘
-                    Yes   │   No
-                     │    │    │
-                     ▼    │    ▼
-              Generate    │  Next Topic
-              Follow-Up   │
-                     │    │
-                     └────┴──────┐
-                                 ▼
-                        Continue Interview
-                                 │
-                                 ▼
-                         8 Candidate Answers
-                                 │
-                                 ▼
-                         Final Evaluation
-                                 │
-                                 ▼
-                          Final Feedback
+## Interview Flow
 
-🛠️ Technology Stack
+```mermaid
+flowchart TD
+    A[Select Candidate] --> B[Analyze Candidate]
+    B --> C[Create Interview Plan]
+    C --> D[Generate Technical Question]
+    D --> E[Candidate Answers]
+    E --> F[Evaluate Answer]
+    F --> G{Follow-Up Needed?}
 
-| Layer             | Technology                   |
-| ----------------- | ---------------------------- |
-| Frontend          | React, Vite, JavaScript, CSS |
-| Backend           | Python, FastAPI, Pydantic    |
-| AI                | Grok                         |
-| Data              | JSON                         |
-| API Communication | REST                         |
-| Version Control   | Git, GitHub                  |
+    G -->|Yes| H[Generate Follow-Up]
+    H --> E
 
-📁 Project Structure
+    G -->|No| I[Move to Next Topic]
+    I --> D
 
-ai-interview-agent/
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   │
-│   │   └── services/
-│   │       ├── data_loader.py
-│   │       ├── candidate_analyzer.py
-│   │       ├── planner.py
-│   │       ├── session_manager.py
-│   │       ├── ai_interviewer.py
-│   │       ├── answer_evaluator.py
-│   │       └── feedback_generator.py
-│   │
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── ...
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-│
-├── PROMPTS.md
-└── README.md
+    I --> J[8 Candidate Answers]
+    J --> K[Generate Final Feedback]
+    K --> L[Interview Complete]
+```
 
-🔌 API Endpoints
-Health Check
+## Technology Stack
 
+### Frontend
+
+- React
+- Vite
+- JavaScript
+- CSS
+
+### Backend
+
+- Python
+- FastAPI
+- Pydantic
+
+### AI
+
+- Grok
+
+### Data
+
+- Candidate Profiles JSON
+- 31-Day AI Cohort Curriculum JSON
+
+### Development
+
+- Git
+- GitHub
+- VS Code
+
+## Key API Endpoints
+
+### Health Check
+
+```http
 GET /
-Returns:
+```
 
-{
-  "message": "AI Interview Agent is running 🚀"
-}
-Get Candidates
+### Get Candidates
+
+```http
 GET /api/candidates
+```
 
 Returns the available candidate profiles.
 
-Start Interview
+### Interview
+
+```http
 POST /api/interview
+```
 
-Example:
+The same endpoint is used to start and continue an interview.
 
+### Start Interview
+
+```json
 {
   "sessionId": "frontend-123456",
   "candidate": {}
 }
-Submit Answer
+```
 
-The same endpoint is used to continue an existing interview:
+### Submit Answer
 
-POST /api/interview
-
-Example:
-
+```json
 {
   "sessionId": "frontend-123456",
-  "message": "Candidate's answer"
+  "message": "Candidate answer"
 }
+```
 
-The API returns either the next interview question or the final feedback
-when the interview is complete.
+## Project Structure
 
-💻 Running Locally
-Backend
+```text
+ai-interview-agent/
+|
++-- backend/
+|   +-- app/
+|       +-- main.py
+|       +-- models.py
+|       +-- services/
+|           +-- data_loader.py
+|           +-- candidate_analyzer.py
+|           +-- planner.py
+|           +-- session_manager.py
+|           +-- ai_interviewer.py
+|           +-- answer_evaluator.py
+|           +-- feedback_generator.py
+|   +-- requirements.txt
+|
++-- frontend/
+|   +-- src/
+|       +-- App.jsx
+|       +-- App.css
+|       +-- main.jsx
+|   +-- package.json
+|
++-- PROMPTS.md
++-- README.md
+```
+
+## Running Locally
+
+### Backend
+
+```bash
 cd backend
 python -m venv venv
+```
 
-Activate the environment on Windows:
+Activate the virtual environment on Windows:
 
+```powershell
 venv\Scripts\activate
+```
 
 Install dependencies:
 
+```bash
 pip install -r requirements.txt
+```
 
 Start the FastAPI server:
 
+```bash
 uvicorn app.main:app --reload
+```
 
 Backend:
 
+```text
 http://127.0.0.1:8000
-Frontend
+```
+
+### Frontend
 
 Open another terminal:
 
+```bash
 cd frontend
 npm install
 npm run dev
+```
 
 Frontend:
 
+```text
 http://localhost:5173
-🤖 AI Usage
+```
 
-AI assistance was used throughout development for:
+## AI Usage Log
 
-Architecture planning
-Candidate personalization
-Interview planning
-Adaptive follow-up logic
-LLM integration
-Backend development
-React frontend development
-Debugging
-Testing
-UI refinement
+The AI-assisted development process is documented in:
 
-The detailed AI usage log is available here:
+[**PROMPTS.md**](PROMPTS.md)
 
-👉 PROMPTS.md
+The log covers architecture planning, implementation, debugging, LLM
+integration, frontend development, testing, and refinement.
 
-🧪 Interview Validation
+## Live Demo
 
-The complete interview flow was tested end-to-end:
-
-Select a candidate
-Analyze candidate profile
-Generate personalized interview plan
-Generate technical question
-Submit candidate answer
-Evaluate answer
-Generate adaptive follow-up when required
-Continue through curriculum topics
-Complete the interview
-Generate final feedback
-
-The system was also tested with different candidate profiles.
-
-🚀 Live Demo
-
-Coming soon
+**Coming soon**
 
 The live demo URL will be added here after deployment.
 
-🏆 Hackathon
+## Hackathon
 
-Built for the AI Cohort Hackathon
+Built for the **AI Cohort Hackathon**
 
-Challenge
+### Challenge
 
-The Interview Agent
+**The Interview Agent**
 
-Build the interviewer, not the interview.
+> Build the interviewer, not the interview.
