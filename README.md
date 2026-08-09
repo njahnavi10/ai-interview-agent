@@ -1,21 +1,18 @@
-# AI Interview Agent
+# 🤖 AI Interview Agent
+
+> **Build the interviewer, not the interview.**
 
 An AI-powered technical interview platform that conducts personalized,
-multi-turn interviews based on a candidate's learning journey through the
-31-day AI Cohort curriculum.
+multi-turn technical interviews based on a candidate's learning journey
+through the 31-day AI Cohort curriculum.
 
-The system analyzes the candidate's learning progress, creates a
-personalized interview plan, generates technical questions, evaluates
-answers, asks adaptive follow-up questions, and provides structured
-feedback at the end of the interview.
+The system analyzes candidate progress, creates a personalized interview
+plan, generates technical questions, evaluates answers, asks adaptive
+follow-up questions, and provides structured feedback at the end.
 
 ---
 
-## Problem Statement
-
-### The Interview Agent
-
-Build the interviewer, not the interview.
+## 🎯 Problem Statement
 
 The AI Cohort covers modern AI engineering topics including:
 
@@ -27,39 +24,46 @@ The AI Cohort covers modern AI engineering topics including:
 - AI Deployment
 - Production AI Systems
 
-After completing the cohort, learners need to be able to explain the
-systems they built and the engineering decisions behind them.
+After completing the cohort, learners should be able to confidently explain
+the systems they built and the engineering decisions behind them.
 
-The AI Interview Agent addresses this by conducting personalized technical
-interviews based on each candidate's learning journey.
+The **AI Interview Agent** provides a realistic technical interview
+experience based on each candidate's actual learning journey.
 
 ---
 
-## Key Features
+## ✨ Key Features
 
-### Personalized Interviews
+### 👤 Personalized Interviews
 
-The interview is generated based on the selected candidate's profile,
-learning progress, completed missions, and curriculum information.
+The interview is personalized using the selected candidate's:
 
-### Curriculum-Based Questions
+- Learning progress
+- Completed missions
+- Attempts
+- Skipped topics
+- Learning signals
+- Curriculum coverage
 
-Questions are generated using topics from the provided 31-day AI Cohort
-curriculum.
+### 📚 Curriculum-Based Questions
 
-### Adaptive Follow-Ups
+Questions are generated from the provided 31-day AI Cohort curriculum
+instead of using a fixed question bank.
 
-Candidate answers are evaluated during the interview. When additional
-clarification or deeper evaluation is needed, the system generates a
-follow-up question.
+### 🔄 Adaptive Follow-Up Questions
 
-The implementation limits follow-ups to one per curriculum topic.
+Candidate answers are evaluated during the interview.
 
-### Multi-Turn Conversation
+If an answer requires clarification or deeper technical exploration, the
+agent generates an adaptive follow-up question.
 
-The backend maintains interview state using a session ID.
+The system allows a maximum of one follow-up per curriculum topic.
 
-The session stores:
+### 💬 Multi-Turn Conversation
+
+The backend maintains the interview context using a session ID.
+
+Each session maintains:
 
 - Candidate information
 - Interview plan
@@ -72,13 +76,14 @@ The session stores:
 - Completion state
 - Final feedback
 
-### Structured Evaluation
+### 📊 Structured Evaluation
 
-Each candidate answer is evaluated by the AI system.
+Every candidate answer is evaluated by the AI system.
 
-### Final Feedback
+### 📝 Final Feedback
 
-After the interview, the candidate receives structured feedback including:
+At the end of the interview, the candidate receives structured feedback
+including:
 
 - Overall score
 - Technical strengths
@@ -88,112 +93,123 @@ After the interview, the candidate receives structured feedback including:
 - Recommendation
 - Summary
 
-### Multiple Candidates
+### 👥 Multiple Candidates
 
-The frontend retrieves the available candidate profiles and allows the
-interviewer to select a candidate before starting the interview.
+The frontend retrieves the available candidate profiles and allows the user
+to select a candidate before starting an interview.
 
 ---
 
-## System Architecture
+## 🏗️ System Architecture
 
 ```text
-                 ┌──────────────────────┐
-                 │    React Frontend    │
-                 │                      │
-                 │ Candidate Selection  │
-                 │ Interview Interface  │
-                 │ Final Feedback       │
-                 └──────────┬───────────┘
-                            │
-                            │ HTTP
-                            ▼
-                 ┌──────────────────────┐
-                 │   FastAPI Backend    │
-                 │                      │
-                 │ /api/candidates      │
-                 │ /api/interview       │
-                 └──────────┬───────────┘
-                            │
-             ┌──────────────┼──────────────┐
-             │              │              │
-             ▼              ▼              ▼
-      Candidate         Curriculum       Session
-       Analyzer           Loader         Manager
-             │              │              │
-             └──────────────┼──────────────┘
-                            ▼
-                 ┌──────────────────────┐
-                 │ Interview Planner    │
-                 └──────────┬───────────┘
-                            ▼
-                 ┌──────────────────────┐
-                 │    AI Interviewer    │
-                 │                      │
-                 │ Question Generation  │
-                 │ Follow-Up Questions  │
-                 └──────────┬───────────┘
-                            ▼
-                 ┌──────────────────────┐
-                 │  Answer Evaluator    │
-                 └──────────┬───────────┘
-                            ▼
-                 ┌──────────────────────┐
-                 │ Feedback Generator   │
-                 └──────────────────────┘
+┌─────────────────────────────────────────┐
+│             React Frontend              │
+│                                         │
+│  Candidate Selection                    │
+│  Interview Interface                    │
+│  Progress Tracking                      │
+│  Final Feedback                         │
+└───────────────────┬─────────────────────┘
+                    │
+                    │ HTTP
+                    ▼
+┌─────────────────────────────────────────┐
+│            FastAPI Backend              │
+│                                         │
+│  GET  /                                 │
+│  GET  /api/candidates                   │
+│  POST /api/interview                    │
+└───────────────────┬─────────────────────┘
+                    │
+       ┌────────────┼────────────┐
+       │            │            │
+       ▼            ▼            ▼
+┌────────────┐ ┌────────────┐ ┌────────────┐
+│ Candidate  │ │ Curriculum │ │  Session   │
+│ Analyzer   │ │   Loader   │ │  Manager   │
+└─────┬──────┘ └─────┬──────┘ └─────┬──────┘
+      │              │              │
+      └──────────────┼──────────────┘
+                     ▼
+            ┌─────────────────┐
+            │ Interview       │
+            │ Planner         │
+            └────────┬────────┘
+                     ▼
+            ┌─────────────────┐
+            │ AI Interviewer  │
+            │                 │
+            │ Question        │
+            │ Follow-Up       │
+            │ Generation      │
+            └────────┬────────┘
+                     ▼
+            ┌─────────────────┐
+            │ Answer          │
+            │ Evaluator       │
+            └────────┬────────┘
+                     ▼
+            ┌─────────────────┐
+            │ Feedback        │
+            │ Generator       │
+            └─────────────────┘
 
-Interview Flow
-Select Candidate
-       ↓
-Analyze Candidate
-       ↓
-Create Personalized Interview Plan
-       ↓
-Select Curriculum Topic
-       ↓
-Generate Technical Question
-       ↓
-Candidate Answers
-       ↓
-Evaluate Answer
-       ↓
-Follow-Up Needed?
-    ↙       ↘
-  Yes        No
-   ↓          ↓
-Follow-Up   Next Topic
-   ↓          ↓
-   └──────────┘
-       ↓
-8 Candidate Answers
-       ↓
-Final Evaluation
-       ↓
-Structured Feedback
-Technology Stack
-Frontend
-React
-Vite
-JavaScript / JSX
-CSS
-Backend
-Python
-FastAPI
-Pydantic
-AI
-LLM-based question generation
-LLM-based answer evaluation
-LLM-based adaptive follow-ups
-LLM-based final feedback generation
-Data
-Candidate Profiles JSON
-31-Day AI Cohort Curriculum JSON
-Development
-Git
-GitHub
-VS Code
-Project Structure
-AI-Interview-Agent/
+## 🔄 Interview Flow
+                    Select Candidate
+                           │
+                           ▼
+                  Analyze Candidate
+                           │
+                           ▼
+                Create Interview Plan
+                           │
+                           ▼
+                  Generate Question
+                           │
+                           ▼
+                   Candidate Answer
+                           │
+                           ▼
+                    Evaluate Answer
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │ Follow-Up Needed?│
+                 └────────┬─────────┘
+                    Yes   │   No
+                     │    │    │
+                     ▼    │    ▼
+              Generate    │  Next Topic
+              Follow-Up   │
+                     │    │
+                     └────┴──────┐
+                                 ▼
+                        Continue Interview
+                                 │
+                                 ▼
+                         8 Candidate Answers
+                                 │
+                                 ▼
+                         Final Evaluation
+                                 │
+                                 ▼
+                          Final Feedback
+
+🛠️ Technology Stack
+
+| Layer             | Technology                   |
+| ----------------- | ---------------------------- |
+| Frontend          | React, Vite, JavaScript, CSS |
+| Backend           | Python, FastAPI, Pydantic    |
+| AI                | Grok                         |
+| Data              | JSON                         |
+| API Communication | REST                         |
+| Version Control   | Git, GitHub                  |
+
+📁 Project Structure
+
+ai-interview-agent/
 │
 ├── backend/
 │   ├── app/
@@ -209,24 +225,24 @@ AI-Interview-Agent/
 │   │       ├── answer_evaluator.py
 │   │       └── feedback_generator.py
 │   │
-│   ├── requirements.txt
-│   └── ...
+│   └── requirements.txt
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx
 │   │   ├── App.css
 │   │   └── ...
+│   ├── public/
 │   ├── package.json
-│   └── ...
+│   └── vite.config.js
 │
 ├── PROMPTS.md
-├── README.md
-└── ...
-API Endpoints
-Health Check
-GET /
+└── README.md
 
+🔌 API Endpoints
+Health Check
+
+GET /
 Returns:
 
 {
@@ -237,60 +253,37 @@ GET /api/candidates
 
 Returns the available candidate profiles.
 
-Interview
+Start Interview
 POST /api/interview
 
-The same endpoint is used to start and continue an interview.
-
-Start Interview
-
-Example request:
+Example:
 
 {
   "sessionId": "frontend-123456",
-  "candidate": {
-    "member": {
-      "name": "Candidate Name"
-    }
-  }
+  "candidate": {}
 }
-Continue Interview
+Submit Answer
 
-Example request:
+The same endpoint is used to continue an existing interview:
+
+POST /api/interview
+
+Example:
 
 {
   "sessionId": "frontend-123456",
   "message": "Candidate's answer"
 }
 
-The response contains the next question or final feedback when the
-interview is complete.
+The API returns either the next interview question or the final feedback
+when the interview is complete.
 
-Interview Constraints
-
-The current implementation uses:
-
-8 candidate answers as the maximum interview length
-Maximum one adaptive follow-up per curriculum topic
-Session-based interview state
-Curriculum-based topic selection
-Candidate-specific interview planning
-
-These constraints keep the interview focused while still allowing
-adaptive interaction.
-
-Running Locally
+💻 Running Locally
 Backend
-
-Navigate to the backend:
-
 cd backend
-
-Create a virtual environment:
-
 python -m venv venv
 
-Activate it on Windows:
+Activate the environment on Windows:
 
 venv\Scripts\activate
 
@@ -298,11 +291,11 @@ Install dependencies:
 
 pip install -r requirements.txt
 
-Start FastAPI:
+Start the FastAPI server:
 
 uvicorn app.main:app --reload
 
-The backend will run at:
+Backend:
 
 http://127.0.0.1:8000
 Frontend
@@ -310,101 +303,60 @@ Frontend
 Open another terminal:
 
 cd frontend
-
-Install dependencies:
-
 npm install
-
-Start the development server:
-
 npm run dev
 
-The frontend will normally be available at:
+Frontend:
 
 http://localhost:5173
-Environment Variables
+🤖 AI Usage
 
-API credentials and other sensitive configuration should be stored as
-environment variables and should not be committed to Git.
+AI assistance was used throughout development for:
 
-Example:
-
-LLM_API_KEY=your_api_key
-
-Do not place real API keys in:
-
-GitHub
-React source code
-README files
-PROMPTS.md
-Screenshots
-AI Usage Log
-
-The AI-assisted development process used during the hackathon is documented
-in:
-
-PROMPTS.md
-
-The log covers architecture planning, implementation, debugging, frontend
-development, LLM integration, testing, and refinement.
-
+Architecture planning
+Candidate personalization
+Interview planning
+Adaptive follow-up logic
+LLM integration
+Backend development
+React frontend development
+Debugging
 Testing
+UI refinement
 
-The complete application was tested through the full interview flow:
+The detailed AI usage log is available here:
 
-Candidate selection
-Candidate analysis
-Personalized interview planning
-Initial question generation
-Candidate answer submission
-Answer evaluation
-Adaptive follow-up generation
-Progression through curriculum topics
-Interview completion
-Final feedback generation
+👉 PROMPTS.md
+
+🧪 Interview Validation
+
+The complete interview flow was tested end-to-end:
+
+Select a candidate
+Analyze candidate profile
+Generate personalized interview plan
+Generate technical question
+Submit candidate answer
+Evaluate answer
+Generate adaptive follow-up when required
+Continue through curriculum topics
+Complete the interview
+Generate final feedback
 
 The system was also tested with different candidate profiles.
 
-LLM Provider During Development
+🚀 Live Demo
 
-The initial implementation used the Gemini API.
+Coming soon
 
-During development and repeated testing, the available Gemini API quota was
-exceeded and the API returned a 429 RESOURCE_EXHAUSTED response.
+The live demo URL will be added here after deployment.
 
-To continue development and testing, the LLM provider was changed to Grok.
+🏆 Hackathon
 
-The core interview architecture remained unchanged. The LLM provider is
-used behind dedicated service functions for:
+Built for the AI Cohort Hackathon
 
-Question generation
-Follow-up generation
-Answer evaluation
-Final feedback generation
-Security Considerations
-
-The application follows basic security practices for the development
-environment:
-
-API keys are kept outside source code.
-User input is validated using Pydantic models.
-LLM API credentials are handled by the backend rather than the frontend.
-The React application communicates with the FastAPI backend through HTTP.
-CORS is configured for the frontend development origin.
-Future Improvements
-
-Possible future improvements include:
-
-Persistent database-backed interview sessions
-Authentication and authorization
-More advanced candidate analytics
-Retrieval-Augmented Generation for curriculum grounding
-More sophisticated interview difficulty adaptation
-Interview history and analytics dashboard
-Production deployment and monitoring
-Automated evaluation benchmarks
-Hackathon
-
-This project was developed for the AI Cohort hackathon challenge:
+Challenge
 
 The Interview Agent
+
+Build the interviewer, not the interview.
